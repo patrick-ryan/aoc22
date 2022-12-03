@@ -35,5 +35,5 @@ fn main() {
     println!("Most food is: {}", food_counts[food_counts.len() - 1]);
 
     let top_3_most_food: i32 = food_counts[food_counts.len() - 3..].iter().sum();
-    println!("Top 3 most food is: {}", top_3_most_food)
+    println!("Top 3 most food is: {}", top_3_most_food);
 }

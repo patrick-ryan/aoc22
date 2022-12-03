@@ -11,8 +11,12 @@ itertools = "0.10.5"
 
 [[bin]]
 name = "01"
-path = "src/01rs/01.rs"
+path = "src/01rs/main.rs"
 
 [[bin]]
 name = "02"
-path = "src/02rs/02.rs"
+path = "src/02rs/main.rs"
+
+[[bin]]
+name = "03"
+path = "src/03rs/main.rs"
