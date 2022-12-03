@@ -1,0 +1,23 @@
+use std::fs::File;
+use std::io::prelude::*;
+use std::io::{self, BufRead};
+use std::path::Path;
+
+
+fn scratch() {
+    let path = Path::new("src/01rs/in.txt");
+
+    let display = path.display();
+
+    let mut file = match File::open(&path) {
+        Err(why) => panic!("couldn't open {}: {}", display, why),
+        Ok(file) => file,
+    };
+
+    let mut s = String::new();
+    match file.read_to_string(&mut s) {
+        Err(why) => panic!("couldn't read {}: {}", display, why),
+        Ok(_) => print!("{} contains:\n{}", display, s),
+    }
+
+}
