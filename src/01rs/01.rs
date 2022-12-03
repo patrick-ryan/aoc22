@@ -2,9 +2,10 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
-
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
+where
+    P: AsRef<Path>,
+{
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
@@ -31,12 +32,8 @@ fn main() {
     }
 
     food_counts.sort();
-    println!("Most food is: {}", food_counts[food_counts.len() -1]);
+    println!("Most food is: {}", food_counts[food_counts.len() - 1]);
 
-    let top_3_most_food: i32 = food_counts[food_counts.len() -3..].iter().sum();
-    println!(
-        "Top 3 most food is: {}",
-        top_3_most_food
-    )
-
+    let top_3_most_food: i32 = food_counts[food_counts.len() - 3..].iter().sum();
+    println!("Top 3 most food is: {}", top_3_most_food)
 }
