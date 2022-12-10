@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+// use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
@@ -15,75 +15,75 @@ where
 }
 
 
-fn get_visible_trees_count(grid: Vec<Vec<i32>>) -> usize {
-    let mut visibles: HashSet<(usize,usize)> = HashSet::new();
+// fn get_visible_trees_count(grid: Vec<Vec<i32>>) -> usize {
+//     let mut visibles: HashSet<(usize,usize)> = HashSet::new();
 
-    // first row
-    for (col_number, size) in grid[0].iter().enumerate() {
-        visibles.insert((0, col_number));
+//     // first row
+//     for (col_number, size) in grid[0].iter().enumerate() {
+//         visibles.insert((0, col_number));
 
-        let mut max_size = size;
-        for row_number in 1..grid.len()-1 {
-            if grid[row_number][col_number] <= *max_size {
-                // no visibility
-                continue;
-            } else {
-                // visible tree
-                visibles.insert((row_number, col_number));
-                max_size = &grid[row_number][col_number];
-            }
-        }
-    }
+//         let mut max_size = size;
+//         for row_number in 1..grid.len()-1 {
+//             if grid[row_number][col_number] <= *max_size {
+//                 // no visibility
+//                 continue;
+//             } else {
+//                 // visible tree
+//                 visibles.insert((row_number, col_number));
+//                 max_size = &grid[row_number][col_number];
+//             }
+//         }
+//     }
 
-    // middle rows
-    for (row_number, row) in grid.iter().enumerate() {
-        visibles.insert((row_number, 0));
-        visibles.insert((row_number, row.len()-1));
+//     // middle rows
+//     for (row_number, row) in grid.iter().enumerate() {
+//         visibles.insert((row_number, 0));
+//         visibles.insert((row_number, row.len()-1));
 
-        let mut max_size = row[0];
-        for col_number in 1..row.len()-1 {
-            if grid[row_number][col_number] <= max_size {
-                // no visibility
-                continue;
-            } else {
-                // visible tree
-                visibles.insert((row_number, col_number));
-                max_size = grid[row_number][col_number];
-            }
-        }
+//         let mut max_size = row[0];
+//         for col_number in 1..row.len()-1 {
+//             if grid[row_number][col_number] <= max_size {
+//                 // no visibility
+//                 continue;
+//             } else {
+//                 // visible tree
+//                 visibles.insert((row_number, col_number));
+//                 max_size = grid[row_number][col_number];
+//             }
+//         }
 
-        let mut max_size = row[row.len() -1];
-        for col_number in (1..row.len()-1).rev() {
-            if grid[row_number][col_number] <= max_size {
-                // no visibility
-                continue;
-            } else {
-                // visible tree
-                visibles.insert((row_number, col_number));
-                max_size = grid[row_number][col_number];
-            }
-        }
-    }
+//         let mut max_size = row[row.len() -1];
+//         for col_number in (1..row.len()-1).rev() {
+//             if grid[row_number][col_number] <= max_size {
+//                 // no visibility
+//                 continue;
+//             } else {
+//                 // visible tree
+//                 visibles.insert((row_number, col_number));
+//                 max_size = grid[row_number][col_number];
+//             }
+//         }
+//     }
 
-    // last row
-    for (col_number, size) in grid[grid.len() -1].iter().enumerate() {
-        visibles.insert((grid.len() -1, col_number));
+//     // last row
+//     for (col_number, size) in grid[grid.len() -1].iter().enumerate() {
+//         visibles.insert((grid.len() -1, col_number));
 
-        let mut max_size = size;
-        for row_number in (1..grid.len()-1).rev() {
-            if grid[row_number][col_number] <= *max_size {
-                // no visibility
-                continue;
-            } else {
-                // visible tree
-                visibles.insert((row_number, col_number));
-                max_size = &grid[row_number][col_number];
-            }
-        }
-    }
+//         let mut max_size = size;
+//         for row_number in (1..grid.len()-1).rev() {
+//             if grid[row_number][col_number] <= *max_size {
+//                 // no visibility
+//                 continue;
+//             } else {
+//                 // visible tree
+//                 visibles.insert((row_number, col_number));
+//                 max_size = &grid[row_number][col_number];
+//             }
+//         }
+//     }
 
-    return visibles.len();
-}
+//     return visibles.len();
+// }
 
 
 fn get_best_scenic(grid: Vec<Vec<i32>>) -> i32 {
