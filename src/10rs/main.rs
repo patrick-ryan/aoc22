@@ -3,8 +3,6 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
-use itertools::Itertools;
-
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
 where
@@ -22,11 +20,27 @@ fn parse(path: &Path) -> i32 {
         let cycle_sample_points = HashSet::from([20, 60, 100, 140, 180, 220]);
         let mut x_register = 1;
 
-        let mut command_in_progress = "";
-        let mut command_args = Vec::new();
+        let mut command_in_progress = Vec::new();
+        let mut command_cycles = 0;
         loop {
-            // check cycle
             cycle += 1;
+
+            // start command if none in progress
+            if command_in_progress.is_empty() {
+                if let Some(Ok(line)) = lines.next() {
+                    if line == "" {
+                        break;
+                    } else {
+                        // transfer ownership from line
+                        command_in_progress = line.split(' ').map(String::from).collect::<Vec<String>>();
+                    }
+                } else {
+                    // end of file
+                    break;
+                }
+            }
+
+            // perform CRT actions
             if cycle_sample_points.contains(&cycle) {
                 total += cycle * x_register;
             }
@@ -40,43 +54,28 @@ fn parse(path: &Path) -> i32 {
                 print!(".");
             }
             if cycle % 40 == 0 {
+                // EOL
                 println!();
             }
 
-            match command_in_progress {
-                "addx" => {
-                    // complete execution
-                    x_register += command_args[0];
-
-                    command_in_progress = "";
-                    command_args.clear();
+            // process commands
+            match command_in_progress.iter().map(String::as_str).collect::<Vec<&str>>()[..] {
+                ["noop"] => {
+                    // do nothing
+                    command_in_progress.clear();
                 },
-                _ => {
-                    // none in progress
-                    if let Some(Ok(line)) = lines.next() {
-                        if line == "" {
-                            break;
-                        } else {
-                            match line.as_str() {
-                                "noop" => {
-                                    // completes execution immediately
-                                },
-                                _ => {
-                                    match line.split(' ').take(2).next_tuple().unwrap() {
-                                        ("addx", value) => {
-                                            let value_int = value.parse::<i32>().unwrap();
-                                            command_in_progress = "addx";
-                                            command_args.push(value_int.clone());
-                                        }
-                                        _ => panic!()
-                                    }
-                                }
-                            }
-                        }
+                ["addx", value] => {
+                    if command_cycles == 1 {
+                        // complete execution
+                        x_register += value.parse::<i32>().unwrap();
+                        command_in_progress.clear();
+                        command_cycles = 0;
                     } else {
-                        break;
+                        // command still running
+                        command_cycles += 1;
                     }
-                }
+                },
+                _ => panic!()
             }
         }
     }
