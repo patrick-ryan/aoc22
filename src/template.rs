@@ -14,8 +14,10 @@ where
 
 fn parse(path: &Path) -> i32 {
     let mut total = 0;
-    if let Ok(mut lines) = read_lines(path) {
+    if let Ok(lines) = read_lines(path) {
         
+    } else {
+        panic!();
     }
     return total;
 }
@@ -25,7 +27,9 @@ fn main() {
     let path = Path::new("src/.../ex.in.txt");
     // let path = Path::new("src/.../in.txt");
 
-    let total = parse(path);
+    parse(path);
+
+    let total = 0;
 
     println!("Total is: {}", total);
 

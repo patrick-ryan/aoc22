@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 itertools = "0.10.5"
 num-bigint = "0.4.3"
+regex = "1.7.0"
 
 
 [[bin]]
@@ -65,3 +66,7 @@ path = "src/13rs/main.rs"
 [[bin]]
 name = "14"
 path = "src/14rs/main.rs"
+
+[[bin]]
+name = "15"
+path = "src/15rs/main.rs"
