@@ -69,8 +69,8 @@ fn get_middle_point_for_sensor_group(
 // fn parse(path: &Path, search_row: i32) -> i32 {
 fn parse(path: &Path) -> i64 {
     let mut sensor_beacon_pairs = Vec::new();
-    let mut max_x = i32::MIN;
-    let mut min_x = i32::MAX;
+    // let mut max_x = i32::MIN;
+    // let mut min_x = i32::MAX;
     if let Ok(lines) = read_lines(path) {
         for line_result in lines {
             if let Ok(line) = line_result {
@@ -81,33 +81,33 @@ fn parse(path: &Path) -> i64 {
                 let sensor_part = sensor_match.as_str();
                 let sensor = parse_tuple_int(sensor_part);
 
-                if sensor.0 > max_x {
-                    max_x = sensor.0;
-                }
-                if sensor.0 < min_x {
-                    min_x = sensor.0;
-                }
+                // if sensor.0 > max_x {
+                //     max_x = sensor.0;
+                // }
+                // if sensor.0 < min_x {
+                //     min_x = sensor.0;
+                // }
 
                 let beacon_match = re_iter.next().unwrap();
                 let beacon_part = beacon_match.as_str();
                 let beacon = parse_tuple_int(beacon_part);
 
-                if beacon.0 > max_x {
-                    max_x = beacon.0;
-                }
-                if beacon.0 < min_x {
-                    min_x = beacon.0;
-                }
+                // if beacon.0 > max_x {
+                //     max_x = beacon.0;
+                // }
+                // if beacon.0 < min_x {
+                //     min_x = beacon.0;
+                // }
 
                 sensor_beacon_pairs.push((sensor, beacon));
 
-                let manhattan_dist = (sensor.0-beacon.0).abs() + (sensor.1-beacon.1).abs();
-                if (sensor.0 + manhattan_dist) > max_x {
-                    max_x = sensor.0 + manhattan_dist;
-                }
-                if (sensor.0 - manhattan_dist) < min_x {
-                    min_x = sensor.0 - manhattan_dist;
-                }
+                // let manhattan_dist = (sensor.0-beacon.0).abs() + (sensor.1-beacon.1).abs();
+                // if (sensor.0 + manhattan_dist) > max_x {
+                //     max_x = sensor.0 + manhattan_dist;
+                // }
+                // if (sensor.0 - manhattan_dist) < min_x {
+                //     min_x = sensor.0 - manhattan_dist;
+                // }
             }
         }
     } else {
