@@ -50,7 +50,7 @@ fn get_middle_point_for_sensor_group(
             .intersection(&last_two_intersection)
             .collect_vec();
 
-            if possible_points.len() > 1 {
+        if possible_points.len() > 1 {
             // this shouldn't happen, there should only be 1 point
             return None;
         } else if possible_points.len() == 0 {
