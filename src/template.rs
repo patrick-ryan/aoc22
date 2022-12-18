@@ -11,23 +11,23 @@ where
     Ok(io::BufReader::new(file).lines())
 }
 
-
-fn parse(path: &Path) -> i32 {
-    let mut total = 0;
+fn parse(path: &Path) {
     if let Ok(lines) = read_lines(path) {
         
     } else {
         panic!();
     }
-    return total;
+    return;
 }
 
 
 fn main() {
-    let path = Path::new("src/.../ex.in.txt");
-    // let path = Path::new("src/.../in.txt");
+    let path_buf = Path::new(file!()).parent().unwrap().join("ex.in.txt");
+    // let path_buf = Path::new(file!()).parent().unwrap().join("in.txt");
 
-    parse(path);
+    assert!(path_buf.as_path().exists());
+
+    parse(path_buf.as_path());
 
     let total = 0;
 
