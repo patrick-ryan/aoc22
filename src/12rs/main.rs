@@ -64,7 +64,6 @@ fn validate_points(grid: &Vec<Vec<char>>, current_point: &(i32,i32), border_poin
 
 fn get_shortest_path(grid: Vec<Vec<char>>) -> i32 {
     // dijstra's
-    let mut starting_points = Vec::new();
     let mut ending_point = (-1,-1);
 
     let mut shortest_path_tree_set = HashSet::new();
@@ -76,7 +75,6 @@ fn get_shortest_path(grid: Vec<Vec<char>>) -> i32 {
     for (x,y) in (0..=max_x).cartesian_product(0..=max_y) {
         // if grid[y as usize][x as usize] == 'S' {  // part 1
         if grid[y as usize][x as usize] == 'a' {
-            starting_points.push((x,y));
             distances.insert((x,y), 0);
         } else {
             if grid[y as usize][x as usize] == 'E' {
