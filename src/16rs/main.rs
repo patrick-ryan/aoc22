@@ -1,18 +1,25 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
-use itertools::Itertools;
+use itertools::{Itertools, concat};
 use regex::Regex;
 
 
-#[derive(PartialEq,Eq,Hash,Debug)]
+#[derive(PartialEq,Eq,Hash,Clone)]
 struct Valve {
     name: String,
     rate: i64,
     open: bool,
     adjacents: Vec<String>,
+}
+
+impl fmt::Debug for Valve {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name)
+    }
 }
 
 
@@ -131,12 +138,160 @@ fn clone_valves(valves: &Vec<Valve>) -> Vec<Valve> {
 }
 
 
+fn find_best_path_pressure_sum_ele_switchoff(
+    minutes: i32,
+    valves: Vec<Valve>,
+    minute_pressure_sums: &HashMap<Vec<Valve>, i64>,
+    current_valve: &Valve,
+    ele_current_valve: &Valve,
+    cache: &mut HashMap<(i32, Vec<Valve>, Valve, Valve), i64>,
+    is_ele: bool,
+    all_open: bool,
+    changeless_visit_path: (&Vec<Valve>, (&mut Vec<Valve>, &mut Vec<Valve>)),
+) -> i64 {
+    // let names = valves.iter().filter(|v| v.open == true).map(|v| v.name.clone()).collect_vec();
+    // let current_name = current_valve.name.clone();
+    // let current_ele_name = ele_current_valve.name.clone();
+    // println!("{minutes} {names:?} {current_name:?} {current_ele_name:?}");
+    // when it's your turn, for each choice you make recursively try this function again for ele's turn
+    // with updated state, to get the pressure sum totals for both choices
+    let current_minute_pressure_sum = minute_pressure_sums.get(&valves).unwrap();
+    let (last_valves_state, (mut visit_path, mut ele_visit_path)) = changeless_visit_path;
+    if !is_ele {
+        visit_path.push(clone_valve(current_valve));
+    } else {
+        ele_visit_path.push(clone_valve(ele_current_valve));
+    }
+
+    let mut pressure_sum = 0 as i64;
+
+    let cv;
+    if is_ele == true {
+        cv = ele_current_valve;
+    } else {
+        cv = current_valve;
+    }
+
+    // open current valve, but never open a valve that has a zero rate
+    if cv.open == false && cv.rate > 0 {
+        // if is_ele {
+        //     println!("ele opening cv {}", cv.name);
+        // } else {
+        //     println!("me opening cv {}", cv.name);
+        // }
+        let new_valves = open_valve(&valves, cv);
+        let new_all_open = new_valves.iter().filter(|v| v.open == false && v.rate > 0).count() == 0;
+        let new_cv_ref = new_valves.iter().find(|v| v.name == cv.name).unwrap();
+        let new_cv = clone_valve(new_cv_ref);
+        let changesless_visit_path_state = clone_valves(&new_valves);
+        let new_changeless_visit_path = (&changesless_visit_path_state, (&mut Vec::new(), &mut Vec::new()));
+        if is_ele == true {
+            let next_minutes_sum = find_best_path_pressure_sum(
+                minutes-1,
+                new_valves,
+                &minute_pressure_sums,
+                if new_cv.name == current_valve.name {&new_cv} else {&current_valve},
+                &new_cv,
+                cache,
+                new_all_open,
+                // state has changed, reset
+                new_changeless_visit_path,
+            );
+            if next_minutes_sum > pressure_sum {
+                pressure_sum = next_minutes_sum;
+            }
+        } else {
+            // get best depending on elephant's choices
+            let ele_choices_pressure_sum = find_best_path_pressure_sum_ele_switchoff(
+                minutes,
+                new_valves,
+                &minute_pressure_sums,
+                &new_cv,
+                if new_cv.name == ele_current_valve.name {&new_cv} else {&ele_current_valve},
+                cache,
+                true,
+                new_all_open,
+                // state has changed, reset
+                new_changeless_visit_path,
+            );
+            if ele_choices_pressure_sum > pressure_sum {
+                pressure_sum = ele_choices_pressure_sum;
+            }
+        }
+    }
+    // try moving to another valve
+    let mut target_adjacents = Vec::new();
+    for adjacent in cv.adjacents.iter() {
+        // if no change has occurred since last visit to this valve, skip this valve
+        if !is_ele {
+            if visit_path.iter().any(|v| &v.name == adjacent) && &valves == last_valves_state {
+                continue;
+            }
+        } else {
+            if ele_visit_path.iter().any(|v| &v.name == adjacent) && &valves == last_valves_state {
+                continue;
+            }
+        }
+        target_adjacents.push(adjacent.clone());
+    }
+    let mut target_ajacents_ref = &target_adjacents;
+    if target_adjacents.len() == 0 {
+        // don't get stuck
+        target_ajacents_ref = &cv.adjacents;
+    }
+
+    for adjacent in target_ajacents_ref.iter() {
+        if is_ele == true {
+            let next_minutes_sum = find_best_path_pressure_sum(
+                minutes-1,
+                clone_valves(&valves),
+                &minute_pressure_sums,
+                &current_valve,
+                valves.iter().find(|v| &v.name == adjacent).unwrap(),
+                cache,
+                all_open,
+                (&last_valves_state, (&mut visit_path, &mut ele_visit_path)),
+            );
+            if next_minutes_sum > pressure_sum {
+                pressure_sum = next_minutes_sum;
+            }
+        }
+        else {
+            // get best depending on elephant's choices
+            let ele_choices_pressure_sum = find_best_path_pressure_sum_ele_switchoff(
+                minutes,
+                clone_valves(&valves),
+                &minute_pressure_sums,
+                valves.iter().find(|v| &v.name == adjacent).unwrap(),
+                &ele_current_valve,
+                cache,
+                true,
+                all_open,
+                (&last_valves_state, (&mut visit_path, &mut ele_visit_path)),
+            );
+            if ele_choices_pressure_sum > pressure_sum {
+                pressure_sum = ele_choices_pressure_sum;
+            }
+        }
+    }
+    if is_ele == true {
+        return pressure_sum;
+    } else {
+        // returning the real figure
+        return pressure_sum + current_minute_pressure_sum;
+    }
+}
+
+
 fn find_best_path_pressure_sum(
     minutes: i32,
     valves: Vec<Valve>,
     minute_pressure_sums: &HashMap<Vec<Valve>, i64>,
     current_valve: &Valve,
-    cache: &mut HashMap<(i32, Vec<Valve>, Valve), i64>,
+    ele_current_valve: &Valve,
+    cache: &mut HashMap<(i32, Vec<Valve>, Valve, Valve), i64>,
+    all_open: bool,
+    changeless_visit_path: (&Vec<Valve>, (&mut Vec<Valve>, &mut Vec<Valve>)),
 ) -> i64 {
     // remaining minutes 2 can be mathed as:
     //   if current valve is closed, open current valve and return, else return
@@ -153,60 +308,252 @@ fn find_best_path_pressure_sum(
     //     - ...
     //     - moving to adjacent valve <Z>
     //          best path pressure sum for N-1 minutes, at valve <Z> (new current)
-    let cache_key = (minutes, clone_valves(&valves), clone_valve(current_valve));
+    let cache_key = (minutes, clone_valves(&valves), clone_valve(current_valve), clone_valve(ele_current_valve));
     if cache.contains_key(&cache_key) {
         return *cache.get(&cache_key).unwrap();
     }
-    // let names = valves.iter().filter(|v| v.open == true).map(|v| v.name.clone()).collect_vec();
-    // let current_name = current_valve.name.clone();
-    // println!("{minutes} {names:?} {current_name:?}");
-    let current_minute_pressure_sum = minute_pressure_sums.get(&valves).unwrap();
-    if minutes == 2 || valves.iter().filter(|v| v.open == false && v.rate > 0).count() == 0 {
-        // open current valve, but never open a valve that has a zero rate
-        if current_valve.open == false && current_valve.rate > 0 {
-            let new_valves = open_valve(&valves, current_valve);
-            let last_minute_sum = minute_pressure_sums.get(&new_valves).unwrap();
-            let pressure_sum = current_minute_pressure_sum + last_minute_sum;
-            cache.insert((minutes, valves, clone_valve(current_valve)), pressure_sum);
-            return pressure_sum;
-        } else {
-            let pressure_sum = (minutes as i64) * current_minute_pressure_sum;
-            cache.insert((minutes, valves, clone_valve(current_valve)), pressure_sum);
-            return pressure_sum;
-        }
-    } else {
-        // open current valve, but never open a valve that has a zero rate
-        let mut pressure_sum = 0 as i64;
-        if current_valve.open == false && current_valve.rate > 0 {
-            let new_valves = open_valve(&valves, current_valve);
-            let new_current_valve_ref = new_valves.iter().find(|v| v.name == current_valve.name).unwrap();
-            let new_current_valve = clone_valve(new_current_valve_ref);
-            let next_minutes_sum = find_best_path_pressure_sum(
-                minutes-1,
-                new_valves,
-                &minute_pressure_sums,
-                &new_current_valve,
-                cache,
-            );
-            if current_minute_pressure_sum + next_minutes_sum > pressure_sum {
-                pressure_sum = current_minute_pressure_sum + next_minutes_sum;
-            }
-        }
-        // try moving to another valve
-        for adjacent in current_valve.adjacents.iter() {
-            let next_minutes_sum = find_best_path_pressure_sum(
-                minutes-1,
-                clone_valves(&valves),
-                &minute_pressure_sums,
-                valves.iter().find(|v| &v.name == adjacent).unwrap(),
-                cache,
-            );
-            if current_minute_pressure_sum + next_minutes_sum > pressure_sum {
-                pressure_sum = current_minute_pressure_sum + next_minutes_sum;
-            }
-        }
-        cache.insert((minutes, valves, clone_valve(current_valve)), pressure_sum);
+    if all_open == true {
+        let current_minute_pressure_sum = minute_pressure_sums.get(&valves).unwrap();
+        let pressure_sum = (minutes as i64) * current_minute_pressure_sum;
+        cache.insert((minutes, valves, clone_valve(current_valve), clone_valve(ele_current_valve)), pressure_sum);
         return pressure_sum;
+    } else if minutes == 2 {
+        let current_minute_pressure_sum = minute_pressure_sums.get(&valves).unwrap();
+        let current_valves;
+        if current_valve.name == ele_current_valve.name {
+            // only one mammal can do anything about this, elephant can take a break
+            current_valves = vec![current_valve];
+        } else {
+            current_valves = vec![current_valve, ele_current_valve];
+        }
+        let mut new_valves = clone_valves(&valves);
+        for cv in current_valves {
+            // open current valve, but never open a valve that has a zero rate
+            if cv.open == false && cv.rate > 0 {
+                new_valves = open_valve(&new_valves, cv);
+            }
+        }
+        let last_minute_sum = minute_pressure_sums.get(&new_valves).unwrap();
+        let pressure_sum = current_minute_pressure_sum + last_minute_sum;
+        cache.insert((minutes, valves, clone_valve(current_valve), clone_valve(ele_current_valve)), pressure_sum);
+        return pressure_sum;
+
+    } else {
+        let pressure_sum = find_best_path_pressure_sum_ele_switchoff(
+            minutes,
+            clone_valves(&valves),
+            minute_pressure_sums,
+            current_valve,
+            ele_current_valve,
+            cache,
+            false,
+            all_open,
+            changeless_visit_path,
+        );
+        cache.insert((minutes, valves, clone_valve(current_valve), clone_valve(ele_current_valve)), pressure_sum);
+        return pressure_sum;
+    }
+}
+
+
+fn get_shortest_path(valves: &Vec<Valve>, start: &Valve, end: &Valve) -> i32 {
+    let mut distances = HashMap::new();
+    let mut shortest_path_tree_set = HashSet::new();
+
+    for valve in valves {
+        if valve.name == start.name {
+            distances.insert(valve, 0);
+        } else {
+            distances.insert(valve, i32::MAX);
+        }
+    }
+
+    loop {
+        if shortest_path_tree_set.len() == valves.len() {
+            break;
+        }
+
+        let current_valve = *distances
+            .iter()
+            .filter(|(&v, &_d)| !shortest_path_tree_set.contains(&v))
+            .min_by_key(|(&_v,&d)| d)
+            .unwrap()
+            .0;
+
+        shortest_path_tree_set.insert(current_valve);
+
+        for adjacent in current_valve.adjacents.iter() {
+            let adjacent_valve = valves.iter().find(|v| &v.name == adjacent).unwrap();
+
+            let mut new_dist = -1;
+            if distances[&current_valve] < i32::MAX && distances[&current_valve] + 1 < distances[&adjacent_valve] {
+                new_dist = distances[&current_valve] + 1;
+            }
+            if new_dist > -1 {
+                distances.insert(adjacent_valve, new_dist);
+            }
+        }
+    }
+
+    return distances[end];
+}
+
+
+fn find_best_path_pressure_sum(valves: &Vec<Valve>, minutes: i32) -> i64 {
+    let mut shortest_paths_cache = HashMap::new();
+
+    let start = valves.iter().find(|v| v.name == "AA").unwrap();
+    let mut paths =
+        vec![
+            (
+                ((vec![start], vec![start]), (0, 0), 0 as i64),
+                valves.iter().filter(|v| v.rate > 0).collect_vec()
+            )
+        ];
+    loop {
+        let mut new_paths = Vec::new();
+        let mut stop = false;
+        for (((my_path, ele_path), (my_path_dist, ele_path_dist), path_pressure_sum), remainder) in &paths {
+            if remainder.len() == 1 {
+                stop = true;
+
+                let my_source = my_path[my_path.len()-1];
+                let ele_source = ele_path[ele_path.len()-1];
+                let &target = &remainder[0];
+    
+                let my_dist;
+                let cache_key = (my_source.clone(), target.clone());
+                if shortest_paths_cache.contains_key(&cache_key) {
+                    my_dist = shortest_paths_cache[&cache_key];
+                } else {
+                    my_dist = get_shortest_path(&valves, my_source, target) as i64;
+                    shortest_paths_cache.insert(cache_key, my_dist);
+                }
+
+                let ele_dist;
+                let cache_key = (ele_source.clone(), target.clone());
+                if shortest_paths_cache.contains_key(&cache_key) {
+                    ele_dist = shortest_paths_cache[&cache_key];
+                } else {
+                    ele_dist = get_shortest_path(&valves, ele_source, target) as i64;
+                    shortest_paths_cache.insert(cache_key, ele_dist);
+                }
+    
+                let mut new_path_pressure_sum: i64 = *path_pressure_sum;
+
+                let comp_my_path_dist = my_path_dist + my_dist + 1;
+                let new_my_path;
+                let new_my_path_dist;
+                if comp_my_path_dist >= (minutes as i64) || my_dist > ele_dist {
+                    new_my_path = my_path.clone();
+                    new_my_path_dist = *my_path_dist;
+                } else {
+                    new_my_path = concat(vec![my_path.clone(), vec![target]]);
+                    new_path_pressure_sum += target.rate * ((minutes as i64) - comp_my_path_dist);
+                    new_my_path_dist = comp_my_path_dist;
+                }
+
+                let comp_ele_path_dist = ele_path_dist + ele_dist + 1;
+                let new_ele_path;
+                let new_ele_path_dist;
+                if comp_ele_path_dist >= (minutes as i64) || ele_dist >= my_dist {
+                    new_ele_path = ele_path.clone();
+                    new_ele_path_dist = *ele_path_dist;
+                } else {
+                    new_ele_path = concat(vec![ele_path.clone(), vec![target]]);
+                    new_path_pressure_sum += target.rate * ((minutes as i64) - comp_ele_path_dist);
+                    new_ele_path_dist = comp_ele_path_dist;
+                }
+
+                new_paths.push((((new_my_path, new_ele_path), (new_my_path_dist, new_ele_path_dist), new_path_pressure_sum), Vec::new()));
+
+            } else {
+                let my_source = my_path[my_path.len()-1];
+                let ele_source = ele_path[ele_path.len()-1];
+                for targets in remainder.iter().permutations(2) {
+                    let &my_target = targets[0];
+                    let &ele_target = targets[1];
+                    if my_target.name == ele_target.name {
+                        continue;
+                    }
+    
+                    let my_dist;
+                    let cache_key = (my_source.clone(), my_target.clone());
+                    if shortest_paths_cache.contains_key(&cache_key) {
+                        my_dist = shortest_paths_cache[&cache_key];
+                    } else {
+                        my_dist = get_shortest_path(&valves, my_source, my_target) as i64;
+                        shortest_paths_cache.insert(cache_key, my_dist);
+                    }
+    
+                    let ele_dist;
+                    let cache_key = (ele_source.clone(), ele_target.clone());
+                    if shortest_paths_cache.contains_key(&cache_key) {
+                        ele_dist = shortest_paths_cache[&cache_key];
+                    } else {
+                        ele_dist = get_shortest_path(&valves, ele_source, ele_target) as i64;
+                        shortest_paths_cache.insert(cache_key, ele_dist);
+                    }
+    
+                    let new_remainder =
+                        remainder
+                        .iter()
+                        .filter(|v| v.name != my_target.name && v.name != ele_target.name)
+                        .map(|v| v.clone())
+                        .collect_vec();
+                    if new_remainder.len() == 0 {
+                        stop = true;
+                    }
+    
+                    let mut new_path_pressure_sum: i64 = *path_pressure_sum;
+    
+                    let comp_my_path_dist = my_path_dist + my_dist + 1;
+                    let new_my_path;
+                    let new_my_path_dist;
+                    if comp_my_path_dist >= (minutes as i64) {
+                        new_my_path = my_path.clone();
+                        new_my_path_dist = *my_path_dist;
+                    } else {
+                        new_my_path = concat(vec![my_path.clone(), vec![my_target]]);
+                        new_path_pressure_sum += my_target.rate * ((minutes as i64) - comp_my_path_dist);
+                        new_my_path_dist = comp_my_path_dist;
+                    }
+    
+                    let comp_ele_path_dist = ele_path_dist + ele_dist + 1;
+                    let new_ele_path;
+                    let new_ele_path_dist;
+                    if comp_ele_path_dist >= (minutes as i64) {
+                        new_ele_path = ele_path.clone();
+                        new_ele_path_dist = *ele_path_dist;
+                    } else {
+                        new_ele_path = concat(vec![ele_path.clone(), vec![ele_target]]);
+                        new_path_pressure_sum += ele_target.rate * ((minutes as i64) - comp_ele_path_dist);
+                        new_ele_path_dist = comp_ele_path_dist;
+                    }
+    
+                    new_paths.push((((new_my_path, new_ele_path), (new_my_path_dist, new_ele_path_dist), new_path_pressure_sum), new_remainder));
+                }
+
+            }
+        }
+        if new_paths.len() == 0 {
+            panic!();
+        }
+        if stop {
+            return
+                new_paths
+                .iter()
+                .max_by_key(|p| p.0.2)
+                .unwrap()
+                .0.2;
+        }
+        paths =
+            new_paths
+            .iter()
+            .sorted_by_key(|p| -p.0.2)
+            .map(|p| (p.0.clone(), p.1.clone()))
+            .take(10000)
+            .collect_vec();
     }
 }
 
@@ -218,12 +565,8 @@ fn main() {
     assert!(path_buf.as_path().exists());
 
     let valves = parse(path_buf.as_path());
-    let minute_pressure_sums = get_open_valves_pressure_sums(&valves);
-    
-    println!("finding best path");
-    let current_valve = clone_valve(valves.iter().find(|v| &v.name == "AA").unwrap());
-    let mut cache = HashMap::new();
-    let total = find_best_path_pressure_sum(30, valves, &minute_pressure_sums, &current_valve, &mut cache);
+
+    let total = find_best_path_pressure_sum(valves, 26);
 
     println!("Total is: {}", total);
 
